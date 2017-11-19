@@ -60,17 +60,7 @@ class Game:
         return self.state
 
     def __repr__(self):
-        if self.state == self.WON:
-            s = f'Player {self.player} won:\n'
-        elif self.state == self.ERROR:
-            s = f'Got error from player {self.player}\n'
-        elif self.state == self.TIE:
-            s = 'Tie:\n'
-        else:
-            s = ''
-        s += ''.join(self.board)
-        s += f'\nMoves so far: {self.hist}\n'
-        return s
+        return ''.join(self.board)
 
     def __str__(self):
         if self.state == self.WON:
@@ -105,6 +95,31 @@ class RandomPlayer(Player):
             move = random.randrange(0,9)
         return move
 
+class LearningPlayer(Player):
+    def __init__(self):
+        self.mem = {' '*9: list(range(9))*2}
+        self.player = 0
+
+    def reset(self, game, player):
+        if self.player and self.game.state == Game.WON:
+            replay = Game()
+            for move in self.game.hist:
+                if replay.player == self.player:
+                    if self.game.player == self.player:
+                        self.mem[repr(replay)] += [move] * 3
+                    elif self.game.player != self.player and move is not None:
+                        self.mem[repr(replay)].remove(move)
+                replay.play(move)
+        return super().reset(game, player)
+
+    def get_move(self):
+        board = repr(self.game)
+        choices = self.mem.setdefault(board, [x for x in range(9) if self.game.board[x] == ' '])
+        if choices:
+            return random.choice(choices)
+        return None
+
+
 
 def play_game(p1, p2):
     game = Game()
@@ -116,7 +131,6 @@ def play_game(p1, p2):
         move = player.get_move()
         game.play(move)
         player = p()
-    print(game)
     if game.state == game.WON:
         return game.player
     elif game.state == game.ERROR:
@@ -128,8 +142,8 @@ def play_game(p1, p2):
 if __name__ == "__main__":
     stats = [0, 0, 0]
     p1 = RandomPlayer()
-    p2 = RandomPlayer()
-    for i in range(100):
+    p2 = LearningPlayer()
+    for i in range(10000):
         res = play_game(p1, p2)
         if res < 0:
             break
